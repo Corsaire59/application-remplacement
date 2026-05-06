@@ -11,7 +11,23 @@
 
 <h1 style="text-align:center;color:#ffd400;">Remplacements</h1>
 
-<div style="background:white;color:black;padding:15px;border-radius:12px;">
+<div id="loginBox" style="background:white;color:black;padding:15px;border-radius:12px;margin-bottom:20px;">
+  <h2>Connexion agent</h2>
+  <input id="email" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <input id="password" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <button onclick="connexion()" style="width:100%;padding:12px;background:#ffd400;border:0;border-radius:8px;font-weight:bold;">
+    Se connecter
+  </button>
+</div>
+
+<div id="userBox" style="display:none;background:#e8f5e9;color:black;padding:15px;border-radius:12px;margin-bottom:20px;">
+  <p><strong>Connecté :</strong> <span id="userEmail"></span></p>
+  <button onclick="deconnexion()" style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;">
+    Se déconnecter
+  </button>
+</div>
+
+<div id="formBox" style="display:none;background:white;color:black;padding:15px;border-radius:12px;">
   <input id="nom" placeholder="Nom agent" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
   <input id="date" type="date" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
 
@@ -44,8 +60,66 @@ const SUPABASE_URL = "https://dmtsbrlxkovmzjeqsfrl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_d-b3ZPiauCROoIUO1zE5_Q_R0s_ULkG";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let utilisateurConnecte = null;
+
+async function verifierSession() {
+  const { data } = await client.auth.getSession();
+
+  if (data.session) {
+    utilisateurConnecte = data.session.user;
+    afficherConnecte();
+  } else {
+    afficherDeconnecte();
+  }
+
+  chargerDemandes();
+}
+
+function afficherConnecte() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("userBox").style.display = "block";
+  document.getElementById("formBox").style.display = "block";
+  document.getElementById("userEmail").innerText = utilisateurConnecte.email;
+}
+
+function afficherDeconnecte() {
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("userBox").style.display = "none";
+  document.getElementById("formBox").style.display = "none";
+}
+
+async function connexion() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await client.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    alert("Erreur connexion : " + error.message);
+    return;
+  }
+
+  utilisateurConnecte = data.user;
+  afficherConnecte();
+  chargerDemandes();
+}
+
+async function deconnexion() {
+  await client.auth.signOut();
+  utilisateurConnecte = null;
+  afficherDeconnecte();
+  chargerDemandes();
+}
 
 async function ajouterDemande() {
+  if (!utilisateurConnecte) {
+    alert("Tu dois être connecté.");
+    return;
+  }
+
   const nom = document.getElementById("nom").value;
   const date = document.getElementById("date").value;
   const service = document.getElementById("service").value;
@@ -75,6 +149,11 @@ async function ajouterDemande() {
 }
 
 async function prendreDemande(id) {
+  if (!utilisateurConnecte) {
+    alert("Tu dois être connecté pour prendre une demande.");
+    return;
+  }
+
   const nomPreneur = prompt("Ton nom pour prendre ce remplacement :");
 
   if (!nomPreneur) {
@@ -137,7 +216,7 @@ async function chargerDemandes() {
   });
 }
 
-chargerDemandes();
+verifierSession();
 </script>
 
 </body>
