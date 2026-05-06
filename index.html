@@ -4,153 +4,93 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Application Remplacement</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
-  <style>
-    body{
-      font-family: Arial;
-      background:#0b3a70;
-      color:white;
-      margin:0;
-      padding:20px;
-    }
-
-    h1{
-      text-align:center;
-      color:#ffd400;
-    }
-
-    .card{
-      background:white;
-      color:black;
-      padding:15px;
-      border-radius:12px;
-      margin-bottom:15px;
-    }
-
-    input, select{
-      width:100%;
-      padding:10px;
-      margin-top:10px;
-      border-radius:8px;
-      border:none;
-    }
-
-    button{
-      width:100%;
-      padding:12px;
-      margin-top:15px;
-      background:#ffd400;
-      border:none;
-      border-radius:8px;
-      font-weight:bold;
-      cursor:pointer;
-    }
-
-    .demande{
-      background:#ffffff;
-      color:black;
-      padding:15px;
-      border-radius:10px;
-      margin-top:15px;
-    }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
-<body>
+<body style="font-family:Arial;background:#0b3a70;color:white;padding:20px;">
 
-<h1>Remplacements</h1>
+<h1 style="text-align:center;color:#ffd400;">Remplacements</h1>
 
-<div class="card">
+<div style="background:white;color:black;padding:15px;border-radius:12px;">
+  <input id="nom" placeholder="Nom agent" style="width:100%;padding:10px;margin:10px 0;">
+  <input id="date" type="date" style="width:100%;padding:10px;margin:10px 0;">
 
-  <input type="text" id="nom" placeholder="Nom agent">
-
-  <input type="date" id="date">
-
-  <select id="service">
+  <select id="service" style="width:100%;padding:10px;margin:10px 0;">
     <option>Matin</option>
     <option>Après-midi</option>
     <option>Nuit</option>
     <option>12h</option>
   </select>
 
-  <select id="mode">
+  <select id="mode" style="width:100%;padding:10px;margin:10px 0;">
     <option>Officiel</option>
     <option>Arrangement</option>
   </select>
 
-  <button onclick="ajouterDemande()">
+  <button onclick="ajouterDemande()" style="width:100%;padding:12px;background:#ffd400;border:0;border-radius:8px;font-weight:bold;">
     Publier la demande
   </button>
-
 </div>
 
 <div id="liste"></div>
 
 <script>
-
 const SUPABASE_URL = "https://dmtsbrlxkovmzjeqsfrl.supabase.co";
-
 const SUPABASE_KEY = "sb_publishable_d-b3ZPiauCROoIUO1zE5_Q_R0s_ULkG";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function chargerDemandes(){
+async function ajouterDemande() {
+  const nom = document.getElementById("nom").value;
+  const date = document.getElementById("date").value;
+  const service = document.getElementById("service").value;
+  const mode = document.getElementById("mode").value;
 
-  const { data } = await client
-    .from('demandes')
-    .select('*')
-    .order('created_at', { ascending:false });
+  const { error } = await client.from("demandes").insert({
+    agent_nom: nom,
+    date_service: date,
+    type_service: service,
+    mode_remplacement: mode,
+    statut: "en attente"
+  });
 
-  const liste = document.getElementById('liste');
+  if (error) {
+    alert("Erreur : " + error.message);
+    return;
+  }
 
-  liste.innerHTML = '';
+  alert("Demande publiée !");
+  chargerDemandes();
+}
+
+async function chargerDemandes() {
+  const { data, error } = await client
+    .from("demandes")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.log(error.message);
+    return;
+  }
+
+  const liste = document.getElementById("liste");
+  liste.innerHTML = "";
 
   data.forEach(d => {
-
     liste.innerHTML += `
-      <div class="demande">
-
+      <div style="background:white;color:black;padding:15px;border-radius:10px;margin-top:15px;">
         <h3>${d.agent_nom}</h3>
-
         <p><strong>Date :</strong> ${d.date_service}</p>
-
         <p><strong>Service :</strong> ${d.type_service}</p>
-
         <p><strong>Mode :</strong> ${d.mode_remplacement}</p>
-
         <p><strong>Statut :</strong> ${d.statut}</p>
-
       </div>
     `;
   });
 }
 
-async function ajouterDemande(){
-
-  const nom = document.getElementById('nom').value;
-
-  const date = document.getElementById('date').value;
-
-  const service = document.getElementById('service').value;
-
-  const mode = document.getElementById('mode').value;
-
-  await client.from('demandes').insert([
-    {
-      agent_nom: nom,
-      date_service: date,
-      type_service: service,
-      mode_remplacement: mode,
-    }
-  ]);
-
-  chargerDemandes();
-}
-
 chargerDemandes();
-
 </script>
 
 </body>
