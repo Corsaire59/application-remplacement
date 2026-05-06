@@ -58,7 +58,8 @@ async function ajouterDemande() {
     type_service: service,
     mode_remplacement: mode,
     message: message,
-    statut: "Disponible"
+    statut: "Disponible",
+    pris_par: null
   });
 
   if (error) {
@@ -70,6 +71,30 @@ async function ajouterDemande() {
   document.getElementById("nom").value = "";
   document.getElementById("date").value = "";
   document.getElementById("message").value = "";
+  chargerDemandes();
+}
+
+async function prendreDemande(id) {
+  const nomPreneur = prompt("Ton nom pour prendre ce remplacement :");
+
+  if (!nomPreneur) {
+    return;
+  }
+
+  const { error } = await client
+    .from("demandes")
+    .update({
+      statut: "Pris",
+      pris_par: nomPreneur
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert("Erreur : " + error.message);
+    return;
+  }
+
+  alert("Remplacement pris !");
   chargerDemandes();
 }
 
@@ -88,17 +113,25 @@ async function chargerDemandes() {
   liste.innerHTML = "";
 
   data.forEach(d => {
-    const couleur = d.statut === "Pris" ? "#ffdddd" : "#ddffdd";
-    const bordure = d.statut === "Pris" ? "#c62828" : "#2e7d32";
+    const estPris = d.statut === "Pris";
+    const couleurFond = estPris ? "#ffe1e1" : "#e2ffe2";
+    const couleurBordure = estPris ? "#c62828" : "#2e7d32";
+    const badge = estPris ? "🔴 Pris" : "🟢 Disponible";
+
+    const bouton = estPris
+      ? `<button disabled style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">Déjà pris par ${d.pris_par || "un agent"}</button>`
+      : `<button onclick="prendreDemande(${d.id})" style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">Je prends</button>`;
 
     liste.innerHTML += `
-      <div style="background:${couleur};color:black;padding:15px;border-radius:10px;margin-top:15px;border-left:8px solid ${bordure};">
-        <h3>${d.agent_nom}</h3>
+      <div style="background:${couleurFond};color:black;padding:15px;border-radius:14px;margin-top:15px;border-left:8px solid ${couleurBordure};box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0;">${badge}</h3>
+        <p><strong>Demandé par :</strong> ${d.agent_nom}</p>
         <p><strong>Date :</strong> ${d.date_service}</p>
         <p><strong>Service :</strong> ${d.type_service}</p>
         <p><strong>Mode :</strong> ${d.mode_remplacement}</p>
         <p><strong>Message :</strong><br>${d.message || "Aucun message"}</p>
-        <p><strong>Statut :</strong> ${d.statut}</p>
+        ${d.pris_par ? `<p><strong>Pris par :</strong> ${d.pris_par}</p>` : ""}
+        ${bouton}
       </div>
     `;
   });
