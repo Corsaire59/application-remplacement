@@ -23,16 +23,27 @@
 
   <hr style="margin:20px 0;">
 
-  <h2>Inscription agent</h2>
+  <div id="inscriptionBox">
+    <h2>Inscription agent</h2>
 
-  <input id="prenom" placeholder="Prénom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
-  <input id="nom" placeholder="Nom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
-  <input id="registerEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
-  <input id="registerPassword" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+    <p style="background:#fff8d6;border-left:5px solid #ffd400;padding:10px;border-radius:8px;">
+      Après création du compte, vous devrez confirmer votre inscription depuis le mail reçu avant de pouvoir vous connecter.
+    </p>
 
-  <button onclick="inscription()" style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;">
-    Créer mon compte
-  </button>
+    <input id="prenom" placeholder="Prénom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+    <input id="nom" placeholder="Nom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+    <input id="registerEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+    <input id="registerPassword" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+
+    <button onclick="inscription()" style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;">
+      Créer mon compte
+    </button>
+  </div>
+
+  <div id="confirmationBox" style="display:none;background:#e8f5e9;border-left:5px solid #2e7d32;padding:12px;border-radius:8px;margin-top:15px;">
+    <strong>Compte créé.</strong><br>
+    Vérifie ta boîte mail et confirme ton inscription avant de te connecter.
+  </div>
 </div>
 
 <div id="userBox" style="display:none;background:#e8f5e9;color:black;padding:15px;border-radius:12px;margin-bottom:20px;">
@@ -113,7 +124,15 @@ async function inscription() {
     return;
   }
 
-  alert("Compte créé. Tu peux maintenant te connecter.");
+  document.getElementById("prenom").value = "";
+  document.getElementById("nom").value = "";
+  document.getElementById("registerEmail").value = "";
+  document.getElementById("registerPassword").value = "";
+
+  document.getElementById("inscriptionBox").style.display = "none";
+  document.getElementById("confirmationBox").style.display = "block";
+
+  alert("Compte créé. Vérifie ta boîte mail et confirme ton inscription avant de te connecter.");
 }
 
 async function connexion() {
