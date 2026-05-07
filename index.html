@@ -410,11 +410,6 @@ async function chargerDemandes() {
     `;
   });
 }
-
-
-</html>
-client
-  .channel('realtime-demandes')
  client
   .channel('realtime-demandes')
   .on(
@@ -429,9 +424,7 @@ client
     }
   )
   .subscribe();
-
 verifierSession();
-
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js")
