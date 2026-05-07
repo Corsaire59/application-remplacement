@@ -849,6 +849,11 @@ client
   .subscribe();
 
 verifierSession();
+  setInterval(() => {
+  if (utilisateurConnecte) {
+    chargerDemandes();
+  }
+}, 5000);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
