@@ -553,6 +553,11 @@ async function chargerProfil() {
   }
 
   profilConnecte = data;
+
+  const avatarLocal = localStorage.getItem("avatar_url_" + utilisateurConnecte.id);
+  if (!profilConnecte.avatar_url && avatarLocal) {
+    profilConnecte.avatar_url = avatarLocal;
+  }
 }
 
 async function verifierSession() {
@@ -585,9 +590,15 @@ function initiales(nom) {
     .toUpperCase();
 }
 
+function urlAvatarAvecCache(url) {
+  if (!url) return "";
+  const separateur = url.includes("?") ? "&" : "?";
+  return `${url}${separateur}v=${Date.now()}`;
+}
+
 function htmlMiniAvatar(url, nom) {
   if (url) {
-    return `<span class="miniAvatar"><img src="${url}" alt=""></span>`;
+    return `<span class="miniAvatar"><img src="${urlAvatarAvecCache(url)}" alt=""></span>`;
   }
 
   return `<span class="miniAvatar">${initiales(nom)}</span>`;
@@ -598,7 +609,7 @@ function afficherAvatarConnecte() {
   if (!avatar) return;
 
   if (profilConnecte && profilConnecte.avatar_url) {
-    avatar.innerHTML = `<img src="${profilConnecte.avatar_url}" alt="Photo de profil">`;
+    avatar.innerHTML = `<img src="${urlAvatarAvecCache(profilConnecte.avatar_url)}" alt="Photo de profil">`;
   } else {
     avatar.innerHTML = "👤";
   }
@@ -630,7 +641,7 @@ async function uploadAvatar(event) {
     .from("avatars")
     .getPublicUrl(fileName);
 
-  const avatarUrl = data.publicUrl + "?t=" + Date.now();
+  const avatarUrl = data.publicUrl;
 
   const { error: updateError } = await client
     .from("profils")
@@ -645,6 +656,7 @@ async function uploadAvatar(event) {
   }
 
   profilConnecte.avatar_url = avatarUrl;
+  localStorage.setItem("avatar_url_" + utilisateurConnecte.id, avatarUrl);
   afficherAvatarConnecte();
   chargerDemandes();
 
@@ -823,25 +835,24 @@ async function chargerDemandes() {
     return;
   }
 
-  const idsProfils = [...new Set(
-    data
-      .flatMap(d => [d.agent_id, d.pris_par_id])
-      .filter(Boolean)
-  )];
-
   let avatars = {};
+  let avatarsParNom = {};
 
-  if (idsProfils.length > 0) {
-    const { data: profilsData, error: profilsError } = await client
-      .from("profils")
-      .select("id, avatar_url")
-      .in("id", idsProfils);
+  const { data: profilsData, error: profilsError } = await client
+    .from("profils")
+    .select("id, prenom, nom, avatar_url");
 
-    if (!profilsError && profilsData) {
-      profilsData.forEach(p => {
-        avatars[p.id] = p.avatar_url;
-      });
-    }
+  if (!profilsError && profilsData) {
+    profilsData.forEach(p => {
+      const nomProfil = `${p.prenom || ""} ${p.nom || ""}`.trim();
+      avatars[p.id] = p.avatar_url;
+      if (nomProfil) avatarsParNom[nomProfil] = p.avatar_url;
+    });
+  }
+
+  if (profilConnecte && profilConnecte.avatar_url) {
+    avatars[utilisateurConnecte.id] = profilConnecte.avatar_url;
+    avatarsParNom[nomComplet()] = profilConnecte.avatar_url;
   }
 
   const liste = document.getElementById("liste");
@@ -896,7 +907,7 @@ async function chargerDemandes() {
         </div>
 
         <div class="infoLine">
-          ${htmlMiniAvatar(avatars[d.agent_id], d.agent_nom)}
+          ${htmlMiniAvatar(avatars[d.agent_id] || avatarsParNom[d.agent_nom], d.agent_nom)}
           <strong>Demandé par :</strong> ${d.agent_nom}
         </div>
         <div class="infoLine">🕒 <strong>Service :</strong> ${d.type_service}</div>
@@ -904,7 +915,7 @@ async function chargerDemandes() {
         <div class="infoLine messageLine">💬 <span><strong>Message :</strong><br>${d.message || "Aucun message"}</span></div>
         ${d.pris_par ? `
           <div class="infoLine">
-            ${htmlMiniAvatar(avatars[d.pris_par_id], d.pris_par)}
+            ${htmlMiniAvatar(avatars[d.pris_par_id] || avatarsParNom[d.pris_par], d.pris_par)}
             <strong>Pris par :</strong> ${d.pris_par}
           </div>
         ` : ""}
