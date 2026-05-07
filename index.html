@@ -415,6 +415,8 @@ async function chargerDemandes() {
 </html>
 client
   .channel('realtime-demandes')
+ client
+  .channel('realtime-demandes')
   .on(
     'postgres_changes',
     {
@@ -437,3 +439,7 @@ if ("serviceWorker" in navigator) {
       .catch(err => console.log("Erreur SW", err));
   });
 }
+</script>
+
+</body>
+</html>
