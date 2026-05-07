@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -374,7 +375,6 @@
       <div class="avatar">👤</div>
       <div class="userInfo"><strong>Connecté :</strong> <span id="userName"></span></div>
       <button onclick="deconnexion()" class="btn btn-red" style="max-width:260px;">Se déconnecter</button>
-      <button onclick="demanderNotifications()" class="btn btn-yellow" style="max-width:260px;">🔔 Activer les notifications</button>
     </div>
   </div>
 
@@ -529,31 +529,6 @@ function nomComplet() {
   return `${profilConnecte.prenom || ""} ${profilConnecte.nom || ""}`.trim();
 }
 
-async function demanderNotifications() {
-  if (!("Notification" in window)) {
-    alert("Les notifications ne sont pas compatibles avec ce navigateur.");
-    return;
-  }
-
-  const permission = await Notification.requestPermission();
-
-  if (permission === "granted") {
-    alert("Notifications activées.");
-  } else {
-    alert("Notifications refusées.");
-  }
-}
-
-function envoyerNotification(titre, message) {
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-
-  new Notification(titre, {
-    body: message,
-    icon: "icon-192.png",
-    badge: "icon-192.png"
-  });
-}
 
 function afficherConnecte() {
   document.getElementById("loginBox").style.display = "none";
@@ -795,53 +770,7 @@ client
       schema: 'public',
       table: 'demandes'
     },
-    (payload) => {
-      if (!utilisateurConnecte) return;
-
-      const d = payload.new;
-
-      if (payload.eventType === "INSERT" && d.agent_id !== utilisateurConnecte.id) {
-        envoyerNotification(
-          "Nouvelle demande de remplacement",
-          `${d.agent_nom} cherche un remplacement le ${d.date_service}`
-        );
-      }
-
-      if (
-        payload.eventType === "UPDATE" &&
-        d.statut === "Pris" &&
-        d.agent_id === utilisateurConnecte.id &&
-        d.pris_par_id !== utilisateurConnecte.id
-      ) {
-        envoyerNotification(
-          "Votre demande a été prise",
-          `${d.pris_par} a pris votre remplacement du ${d.date_service}`
-        );
-      }
-
-      if (
-        payload.eventType === "UPDATE" &&
-        d.statut === "Disponible" &&
-        d.agent_id === utilisateurConnecte.id &&
-        !d.pris_par_id
-      ) {
-        envoyerNotification(
-          "Prise annulée",
-          `Votre remplacement du ${d.date_service} est à nouveau disponible`
-        );
-      }
-
-      if (
-        payload.eventType === "DELETE" &&
-        payload.old &&
-        payload.old.pris_par_id === utilisateurConnecte.id
-      ) {
-        envoyerNotification(
-          "Demande supprimée",
-          "Une demande que vous aviez prise a été supprimée"
-        );
-      }
-
+    () => {
       chargerDemandes();
     }
   )
