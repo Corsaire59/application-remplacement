@@ -180,11 +180,11 @@ async function verifierSession() {
     utilisateurConnecte = data.session.user;
     await chargerProfil();
     afficherConnecte();
+    chargerDemandes();
   } else {
     afficherDeconnecte();
+    document.getElementById("liste").innerHTML = "";
   }
-
-  chargerDemandes();
 }
 
 function nomComplet() {
@@ -210,7 +210,7 @@ async function deconnexion() {
   utilisateurConnecte = null;
   profilConnecte = null;
   afficherDeconnecte();
-  chargerDemandes();
+  document.getElementById("liste").innerHTML = "";
 }
 
 async function ajouterDemande() {
@@ -269,6 +269,11 @@ async function prendreDemande(id) {
 }
 
 async function chargerDemandes() {
+  if (!utilisateurConnecte) {
+    document.getElementById("liste").innerHTML = "";
+    return;
+  }
+
   const { data, error } = await client
     .from("demandes")
     .select("*")
