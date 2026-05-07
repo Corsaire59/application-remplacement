@@ -1,11 +1,10 @@
 {
-  "name": "Application Remplacement",
+  "name": "Remplacements CPM",
   "short_name": "Remplacements",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0b3a70",
   "theme_color": "#0b3a70",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
