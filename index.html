@@ -13,22 +13,36 @@
 
 <div id="loginBox" style="background:white;color:black;padding:15px;border-radius:12px;margin-bottom:20px;">
   <h2>Connexion agent</h2>
-  <input id="email" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
-  <input id="password" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+
+  <input id="loginEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <input id="loginPassword" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+
   <button onclick="connexion()" style="width:100%;padding:12px;background:#ffd400;border:0;border-radius:8px;font-weight:bold;">
     Se connecter
+  </button>
+
+  <hr style="margin:20px 0;">
+
+  <h2>Inscription agent</h2>
+
+  <input id="prenom" placeholder="Prénom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <input id="nom" placeholder="Nom" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <input id="registerEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+  <input id="registerPassword" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
+
+  <button onclick="inscription()" style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;">
+    Créer mon compte
   </button>
 </div>
 
 <div id="userBox" style="display:none;background:#e8f5e9;color:black;padding:15px;border-radius:12px;margin-bottom:20px;">
-  <p><strong>Connecté :</strong> <span id="userEmail"></span></p>
+  <p><strong>Connecté :</strong> <span id="userName"></span></p>
   <button onclick="deconnexion()" style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;">
     Se déconnecter
   </button>
 </div>
 
 <div id="formBox" style="display:none;background:white;color:black;padding:15px;border-radius:12px;">
-  <input id="nom" placeholder="Nom agent" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
   <input id="date" type="date" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
 
   <select id="service" style="width:100%;padding:10px;margin:10px 0;box-sizing:border-box;">
@@ -60,37 +74,51 @@ const SUPABASE_URL = "https://dmtsbrlxkovmzjeqsfrl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_d-b3ZPiauCROoIUO1zE5_Q_R0s_ULkG";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let utilisateurConnecte = null;
+let profilConnecte = null;
 
-async function verifierSession() {
-  const { data } = await client.auth.getSession();
+async function inscription() {
+  const prenom = document.getElementById("prenom").value.trim();
+  const nom = document.getElementById("nom").value.trim();
+  const email = document.getElementById("registerEmail").value.trim();
+  const password = document.getElementById("registerPassword").value;
 
-  if (data.session) {
-    utilisateurConnecte = data.session.user;
-    afficherConnecte();
-  } else {
-    afficherDeconnecte();
+  if (!prenom || !nom || !email || !password) {
+    alert("Merci de remplir tous les champs.");
+    return;
   }
 
-  chargerDemandes();
-}
+  const { data, error } = await client.auth.signUp({
+    email: email,
+    password: password
+  });
 
-function afficherConnecte() {
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("userBox").style.display = "block";
-  document.getElementById("formBox").style.display = "block";
-  document.getElementById("userEmail").innerText = utilisateurConnecte.email;
-}
+  if (error) {
+    alert("Erreur inscription : " + error.message);
+    return;
+  }
 
-function afficherDeconnecte() {
-  document.getElementById("loginBox").style.display = "block";
-  document.getElementById("userBox").style.display = "none";
-  document.getElementById("formBox").style.display = "none";
+  const userId = data.user?.id;
+
+  const { error: profilError } = await client.from("profils").insert({
+    id: userId,
+    email: email,
+    nom: nom,
+    prenom: prenom
+  });
+
+  if (profilError) {
+    alert("Compte créé, mais erreur profil : " + profilError.message);
+    return;
+  }
+
+  alert("Compte créé. Tu peux maintenant te connecter.");
 }
 
 async function connexion() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
 
   const { data, error } = await client.auth.signInWithPassword({
     email: email,
@@ -103,13 +131,65 @@ async function connexion() {
   }
 
   utilisateurConnecte = data.user;
+  await chargerProfil();
   afficherConnecte();
   chargerDemandes();
+}
+
+async function chargerProfil() {
+  const { data, error } = await client
+    .from("profils")
+    .select("*")
+    .eq("id", utilisateurConnecte.id)
+    .single();
+
+  if (error) {
+    profilConnecte = {
+      nom: utilisateurConnecte.email,
+      prenom: ""
+    };
+    return;
+  }
+
+  profilConnecte = data;
+}
+
+async function verifierSession() {
+  const { data } = await client.auth.getSession();
+
+  if (data.session) {
+    utilisateurConnecte = data.session.user;
+    await chargerProfil();
+    afficherConnecte();
+  } else {
+    afficherDeconnecte();
+  }
+
+  chargerDemandes();
+}
+
+function nomComplet() {
+  if (!profilConnecte) return "";
+  return `${profilConnecte.prenom || ""} ${profilConnecte.nom || ""}`.trim();
+}
+
+function afficherConnecte() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("userBox").style.display = "block";
+  document.getElementById("formBox").style.display = "block";
+  document.getElementById("userName").innerText = nomComplet();
+}
+
+function afficherDeconnecte() {
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("userBox").style.display = "none";
+  document.getElementById("formBox").style.display = "none";
 }
 
 async function deconnexion() {
   await client.auth.signOut();
   utilisateurConnecte = null;
+  profilConnecte = null;
   afficherDeconnecte();
   chargerDemandes();
 }
@@ -120,14 +200,13 @@ async function ajouterDemande() {
     return;
   }
 
-  const nom = document.getElementById("nom").value;
   const date = document.getElementById("date").value;
   const service = document.getElementById("service").value;
   const mode = document.getElementById("mode").value;
   const message = document.getElementById("message").value;
 
   const { error } = await client.from("demandes").insert({
-    agent_nom: nom,
+    agent_nom: nomComplet(),
     date_service: date,
     type_service: service,
     mode_remplacement: mode,
@@ -142,7 +221,6 @@ async function ajouterDemande() {
   }
 
   alert("Demande publiée !");
-  document.getElementById("nom").value = "";
   document.getElementById("date").value = "";
   document.getElementById("message").value = "";
   chargerDemandes();
@@ -154,17 +232,11 @@ async function prendreDemande(id) {
     return;
   }
 
-  const nomPreneur = prompt("Ton nom pour prendre ce remplacement :");
-
-  if (!nomPreneur) {
-    return;
-  }
-
   const { error } = await client
     .from("demandes")
     .update({
       statut: "Pris",
-      pris_par: nomPreneur
+      pris_par: nomComplet()
     })
     .eq("id", id);
 
