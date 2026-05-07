@@ -224,14 +224,23 @@ async function ajouterDemande() {
   const mode = document.getElementById("mode").value;
   const message = document.getElementById("message").value;
 
+  if (!date) {
+    alert("Merci de choisir une date.");
+    return;
+  }
+
   const { error } = await client.from("demandes").insert({
     agent_nom: nomComplet(),
+    agent_id: utilisateurConnecte.id,
+    agent_email: utilisateurConnecte.email,
     date_service: date,
     type_service: service,
     mode_remplacement: mode,
     message: message,
     statut: "Disponible",
-    pris_par: null
+    pris_par: null,
+    pris_par_id: null,
+    pris_par_email: null
   });
 
   if (error) {
@@ -245,9 +254,14 @@ async function ajouterDemande() {
   chargerDemandes();
 }
 
-async function prendreDemande(id) {
+async function prendreDemande(id, agentId) {
   if (!utilisateurConnecte) {
-    alert("Tu dois être connecté pour prendre une demande.");
+    alert("Tu dois être connecté.");
+    return;
+  }
+
+  if (agentId === utilisateurConnecte.id) {
+    alert("Tu ne peux pas prendre ta propre demande.");
     return;
   }
 
@@ -255,16 +269,64 @@ async function prendreDemande(id) {
     .from("demandes")
     .update({
       statut: "Pris",
-      pris_par: nomComplet()
+      pris_par: nomComplet(),
+      pris_par_id: utilisateurConnecte.id,
+      pris_par_email: utilisateurConnecte.email
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("statut", "Disponible");
 
   if (error) {
     alert("Erreur : " + error.message);
     return;
   }
 
-  alert("Remplacement pris !");
+  alert("Tu as pris ce remplacement.");
+  chargerDemandes();
+}
+
+async function annulerPrise(id) {
+  if (!utilisateurConnecte) return;
+
+  const { error } = await client
+    .from("demandes")
+    .update({
+      statut: "Disponible",
+      pris_par: null,
+      pris_par_id: null,
+      pris_par_email: null
+    })
+    .eq("id", id)
+    .eq("pris_par_id", utilisateurConnecte.id);
+
+  if (error) {
+    alert("Erreur : " + error.message);
+    return;
+  }
+
+  alert("Prise annulée.");
+  chargerDemandes();
+}
+
+async function supprimerDemande(id) {
+  if (!utilisateurConnecte) return;
+
+  const confirmation = confirm("Supprimer cette demande ?");
+
+  if (!confirmation) return;
+
+  const { error } = await client
+    .from("demandes")
+    .delete()
+    .eq("id", id)
+    .eq("agent_id", utilisateurConnecte.id);
+
+  if (error) {
+    alert("Erreur : " + error.message);
+    return;
+  }
+
+  alert("Demande supprimée.");
   chargerDemandes();
 }
 
@@ -289,13 +351,48 @@ async function chargerDemandes() {
 
   data.forEach(d => {
     const estPris = d.statut === "Pris";
+    const estMaDemande = d.agent_id === utilisateurConnecte.id || d.agent_nom === nomComplet();
+    const estMaPrise = d.pris_par_id === utilisateurConnecte.id;
+
     const couleurFond = estPris ? "#ffe1e1" : "#e2ffe2";
     const couleurBordure = estPris ? "#c62828" : "#2e7d32";
     const badge = estPris ? "🔴 Pris" : "🟢 Disponible";
 
-    const bouton = estPris
-      ? `<button disabled style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">Déjà pris par ${d.pris_par || "un agent"}</button>`
-      : `<button onclick="prendreDemande(${d.id})" style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">Je prends</button>`;
+    let bouton = "";
+
+    if (estPris) {
+      if (estMaPrise) {
+        bouton = `
+          <button onclick="annulerPrise(${d.id})"
+            style="width:100%;padding:12px;background:#ef6c00;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">
+            Annuler ma prise
+          </button>
+        `;
+      } else {
+        bouton = `
+          <button disabled
+            style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">
+            Déjà pris par ${d.pris_par || "un agent"}
+          </button>
+        `;
+      }
+    } else {
+      if (estMaDemande) {
+        bouton = `
+          <button onclick="supprimerDemande(${d.id})"
+            style="width:100%;padding:12px;background:#c62828;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">
+            Supprimer ma demande
+          </button>
+        `;
+      } else {
+        bouton = `
+          <button onclick="prendreDemande(${d.id}, '${d.agent_id || ""}')"
+            style="width:100%;padding:12px;background:#2e7d32;color:white;border:0;border-radius:8px;font-weight:bold;margin-top:10px;">
+            Je prends
+          </button>
+        `;
+      }
+    }
 
     liste.innerHTML += `
       <div style="background:${couleurFond};color:black;padding:15px;border-radius:14px;margin-top:15px;border-left:8px solid ${couleurBordure};box-shadow:0 4px 10px rgba(0,0,0,0.2);">
