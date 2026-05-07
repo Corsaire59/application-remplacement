@@ -409,7 +409,22 @@ async function chargerDemandes() {
   });
 }
 
-verifierSession();
+client
+  .channel('realtime-demandes')
+  .on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'demandes'
+    },
+    () => {
+      chargerDemandes();
+    }
+  )
+  .subscribe();
+
+verifierSession();;
 </script>
 
 </body>
