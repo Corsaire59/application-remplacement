@@ -110,8 +110,8 @@
     }
 
     .avatar {
-      width: 64px;
-      height: 64px;
+      width: 54px;
+      height: 54px;
       border-radius: 50%;
       background: #2e7d32;
       color: white;
@@ -121,14 +121,46 @@
       font-size: 28px;
       font-weight: bold;
       overflow: hidden;
-      margin: 0 auto;
+      flex-shrink: 0;
     }
 
-    .avatar img {
+    .avatar img,
+    .miniAvatar img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+
+    .miniAvatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #eaf2ff;
+      color: #0b3a70;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: bold;
+      overflow: hidden;
+      flex-shrink: 0;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .infoLine {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 17px;
+      margin: 10px 0;
+      line-height: 1.35;
+    }
+
+    .infoLine.messageLine {
+      align-items: flex-start;
     }
 
     .userInfo {
@@ -381,14 +413,12 @@
 
   <div id="userBox" class="userBox">
     <div class="userTop">
-      <div class="avatar" id="avatarBox">👤</div>
+      <div id="profileAvatar" class="avatar">👤</div>
       <div class="userInfo"><strong>Connecté :</strong> <span id="userName"></span></div>
       <button onclick="deconnexion()" class="btn btn-red" style="max-width:260px;">Se déconnecter</button>
 
       <input type="file" id="avatarInput" accept="image/*" style="display:none;" onchange="uploadAvatar(event)">
-      <button onclick="document.getElementById('avatarInput').click()" class="btn btn-yellow" style="max-width:260px;">
-        📸 Changer ma photo
-      </button>
+      <button onclick="document.getElementById('avatarInput').click()" class="btn btn-yellow" style="max-width:260px;">📸 Changer ma photo</button>
     </div>
   </div>
 
@@ -467,7 +497,8 @@ async function inscription() {
     id: userId,
     email: email,
     nom: nom,
-    prenom: prenom
+    prenom: prenom,
+    avatar_url: null
   });
 
   if (profilError) {
@@ -544,21 +575,39 @@ function nomComplet() {
 }
 
 
+function initiales(nom) {
+  return (nom || "?")
+    .trim()
+    .split(/\s+/)
+    .map(mot => mot[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+}
+
+function htmlMiniAvatar(url, nom) {
+  if (url) {
+    return `<span class="miniAvatar"><img src="${url}" alt=""></span>`;
+  }
+
+  return `<span class="miniAvatar">${initiales(nom)}</span>`;
+}
+
+function afficherAvatarConnecte() {
+  const avatar = document.getElementById("profileAvatar");
+  if (!avatar) return;
+
+  if (profilConnecte && profilConnecte.avatar_url) {
+    avatar.innerHTML = `<img src="${profilConnecte.avatar_url}" alt="Photo de profil">`;
+  } else {
+    avatar.innerHTML = "👤";
+  }
+}
 
 async function uploadAvatar(event) {
   const file = event.target.files[0];
 
   if (!file || !utilisateurConnecte) return;
-
-  if (!file.type.startsWith("image/")) {
-    alert("Merci de choisir une image.");
-    return;
-  }
-
-  if (file.size > 3 * 1024 * 1024) {
-    alert("Image trop lourde. Choisis une photo de moins de 3 Mo.");
-    return;
-  }
 
   const extension = file.name.split(".").pop().toLowerCase();
   const fileName = `${utilisateurConnecte.id}.${extension}`;
@@ -568,7 +617,7 @@ async function uploadAvatar(event) {
     .from("avatars")
     .upload(fileName, file, {
       upsert: true,
-      contentType: file.type
+      cacheControl: "0"
     });
 
   if (uploadError) {
@@ -596,21 +645,13 @@ async function uploadAvatar(event) {
   }
 
   profilConnecte.avatar_url = avatarUrl;
-  afficherConnecte();
+  afficherAvatarConnecte();
+  chargerDemandes();
+
+  document.getElementById("avatarInput").value = "";
   alert("Photo mise à jour !");
 }
 
-function afficherAvatarConnecte() {
-  const avatarBox = document.getElementById("avatarBox");
-
-  if (!avatarBox) return;
-
-  if (profilConnecte && profilConnecte.avatar_url) {
-    avatarBox.innerHTML = `<img src="${profilConnecte.avatar_url}" alt="Photo de profil">`;
-  } else {
-    avatarBox.innerHTML = "👤";
-  }
-}
 
 function afficherConnecte() {
   document.getElementById("loginBox").style.display = "none";
@@ -626,9 +667,6 @@ function afficherDeconnecte() {
   document.getElementById("userBox").style.display = "none";
   document.getElementById("formBox").style.display = "none";
   document.getElementById("tabsBox").style.display = "none";
-
-  const avatarBox = document.getElementById("avatarBox");
-  if (avatarBox) avatarBox.innerHTML = "👤";
 }
 
 async function deconnexion() {
@@ -785,6 +823,27 @@ async function chargerDemandes() {
     return;
   }
 
+  const idsProfils = [...new Set(
+    data
+      .flatMap(d => [d.agent_id, d.pris_par_id])
+      .filter(Boolean)
+  )];
+
+  let avatars = {};
+
+  if (idsProfils.length > 0) {
+    const { data: profilsData, error: profilsError } = await client
+      .from("profils")
+      .select("id, avatar_url")
+      .in("id", idsProfils);
+
+    if (!profilsError && profilsData) {
+      profilsData.forEach(p => {
+        avatars[p.id] = p.avatar_url;
+      });
+    }
+  }
+
   const liste = document.getElementById("liste");
   liste.innerHTML = "";
 
@@ -836,11 +895,19 @@ async function chargerDemandes() {
           <div class="datePill">${d.date_service}</div>
         </div>
 
-        <p>👤 <strong>Demandé par :</strong> ${d.agent_nom}</p>
-        <p>🕒 <strong>Service :</strong> ${d.type_service}</p>
-        <p>🏢 <strong>Mode :</strong> ${d.mode_remplacement}</p>
-        <p>💬 <strong>Message :</strong><br>${d.message || "Aucun message"}</p>
-        ${d.pris_par ? `<p>👤 <strong>Pris par :</strong> ${d.pris_par}</p>` : ""}
+        <div class="infoLine">
+          ${htmlMiniAvatar(avatars[d.agent_id], d.agent_nom)}
+          <strong>Demandé par :</strong> ${d.agent_nom}
+        </div>
+        <div class="infoLine">🕒 <strong>Service :</strong> ${d.type_service}</div>
+        <div class="infoLine">🏢 <strong>Mode :</strong> ${d.mode_remplacement}</div>
+        <div class="infoLine messageLine">💬 <span><strong>Message :</strong><br>${d.message || "Aucun message"}</span></div>
+        ${d.pris_par ? `
+          <div class="infoLine">
+            ${htmlMiniAvatar(avatars[d.pris_par_id], d.pris_par)}
+            <strong>Pris par :</strong> ${d.pris_par}
+          </div>
+        ` : ""}
         ${bouton}
       </div>
     `;
