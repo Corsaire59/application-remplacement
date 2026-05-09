@@ -627,9 +627,7 @@ function initiales(nom) {
 }
 
 function urlAvatarAvecCache(url) {
-  if (!url) return "";
-  const separateur = url.includes("?") ? "&" : "?";
-  return `${url}${separateur}v=${Date.now()}`;
+  return url || "";
 }
 
 function htmlMiniAvatar(url, nom) {
@@ -1028,12 +1026,6 @@ client
   .subscribe();
 
 verifierSession();
-
-setInterval(() => {
-  if (utilisateurConnecte) {
-    chargerDemandes();
-  }
-}, 5000);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
