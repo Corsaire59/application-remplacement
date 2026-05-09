@@ -579,6 +579,42 @@ function nomComplet() {
   return `${profilConnecte.prenom || ""} ${profilConnecte.nom || ""}`.trim();
 }
 
+function formatDateFr(dateIso) {
+  if (!dateIso) return "";
+  const [annee, mois, jour] = dateIso.split("-");
+  return `${jour}/${mois}/${annee}`;
+}
+
+function echapperHtml(texte) {
+  return String(texte || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function envoyerEmailNotification({ to, subject, html }) {
+  if (!to) {
+    console.log("Aucun destinataire mail indiqué.");
+    return;
+  }
+
+  const { data, error } = await client.functions.invoke("send-notification-email", {
+    body: {
+      to,
+      subject,
+      html
+    }
+  });
+
+  if (error) {
+    console.log("Erreur envoi mail :", error.message);
+    return;
+  }
+
+  console.log("Mail envoyé :", data);
+}
 
 function initiales(nom) {
   return (nom || "?")
@@ -771,12 +807,45 @@ async function prendreDemande(id, agentId) {
     return;
   }
 
-  alert("Tu as pris ce remplacement.");
+  const demande = data[0];
+
+  await envoyerEmailNotification({
+    to: demande.agent_email,
+    subject: "Votre demande de remplacement a trouvé preneur",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;">
+        <h2>Votre demande a trouvé preneur</h2>
+        <p>Bonjour ${echapperHtml(demande.agent_nom)},</p>
+        <p>Votre demande de remplacement a été prise par <strong>${echapperHtml(nomComplet())}</strong>.</p>
+        <p>
+          <strong>Date :</strong> ${echapperHtml(formatDateFr(demande.date_service))}<br>
+          <strong>Service :</strong> ${echapperHtml(demande.type_service)}<br>
+          <strong>Mode :</strong> ${echapperHtml(demande.mode_remplacement)}
+        </p>
+        ${demande.message ? `<p><strong>Message de la demande :</strong><br>${echapperHtml(demande.message).replace(/\n/g, "<br>")}</p>` : ""}
+        <p>Vous pouvez consulter l'application pour voir le détail.</p>
+      </div>
+    `
+  });
+
+  alert("Tu as pris ce remplacement. Un mail a été envoyé à l’agent.");
   chargerDemandes();
 }
 
 async function annulerPrise(id) {
   if (!utilisateurConnecte) return;
+
+  const { data: demandeAvantAnnulation, error: lectureError } = await client
+    .from("demandes")
+    .select("*")
+    .eq("id", id)
+    .eq("pris_par_id", utilisateurConnecte.id)
+    .single();
+
+  if (lectureError) {
+    alert("Erreur : " + lectureError.message);
+    return;
+  }
 
   const { error } = await client
     .from("demandes")
@@ -794,7 +863,25 @@ async function annulerPrise(id) {
     return;
   }
 
-  alert("Prise annulée.");
+  await envoyerEmailNotification({
+    to: demandeAvantAnnulation.agent_email,
+    subject: "La prise en charge de votre remplacement a été annulée",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;">
+        <h2>Prise en charge annulée</h2>
+        <p>Bonjour ${echapperHtml(demandeAvantAnnulation.agent_nom)},</p>
+        <p><strong>${echapperHtml(nomComplet())}</strong> a annulé la prise en charge de votre demande.</p>
+        <p>
+          <strong>Date :</strong> ${echapperHtml(formatDateFr(demandeAvantAnnulation.date_service))}<br>
+          <strong>Service :</strong> ${echapperHtml(demandeAvantAnnulation.type_service)}<br>
+          <strong>Mode :</strong> ${echapperHtml(demandeAvantAnnulation.mode_remplacement)}
+        </p>
+        <p>Votre demande repasse disponible dans l'application.</p>
+      </div>
+    `
+  });
+
+  alert("Prise annulée. Un mail a été envoyé à l’agent.");
   chargerDemandes();
 }
 
