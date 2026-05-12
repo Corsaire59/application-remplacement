@@ -217,6 +217,11 @@
       color: white;
     }
 
+    .btn-blue {
+      background: #0b3a70;
+      color: white;
+    }
+
     .btn-orange {
       background: #ef6c00;
       color: white;
@@ -302,6 +307,17 @@
       padding: 8px 12px;
       border-radius: 10px;
       font-weight: bold;
+    }
+
+    .typePill {
+      display: inline-block;
+      background: rgba(11,58,112,0.10);
+      color: #0b3a70;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-weight: bold;
+      margin: 0 0 10px;
+      font-size: 14px;
     }
 
     .card p {
@@ -424,6 +440,11 @@
 
   <div id="formBox" class="box" style="display:none;">
     <div class="formTitle"><span class="plusIcon">+</span> Publier une demande</div>
+
+    <select id="typeAnnonce">
+      <option value="besoin">Je cherche un remplaçant</option>
+      <option value="disponibilite">Je suis disponible</option>
+    </select>
 
     <input id="date" type="date">
 
@@ -729,6 +750,7 @@ async function ajouterDemande() {
     return;
   }
 
+  const typeAnnonce = document.getElementById("typeAnnonce").value;
   const date = document.getElementById("date").value;
   const service = document.getElementById("service").value;
   const mode = document.getElementById("mode").value;
@@ -743,6 +765,7 @@ async function ajouterDemande() {
     agent_nom: nomComplet(),
     agent_id: utilisateurConnecte.id,
     agent_email: utilisateurConnecte.email,
+    type_annonce: typeAnnonce,
     date_service: date,
     type_service: service,
     mode_remplacement: mode,
@@ -758,7 +781,8 @@ async function ajouterDemande() {
     return;
   }
 
-  alert("Demande publiée !");
+  alert(typeAnnonce === "disponibilite" ? "Disponibilité publiée !" : "Demande publiée !");
+  document.getElementById("typeAnnonce").value = "besoin";
   document.getElementById("date").value = "";
   document.getElementById("message").value = "";
   chargerDemandes();
@@ -959,6 +983,8 @@ async function chargerDemandes() {
   }
 
   demandes.forEach(d => {
+    const typeAnnonce = d.type_annonce || "besoin";
+    const estDisponibilite = typeAnnonce === "disponibilite";
     const estPris = d.statut === "Pris";
     const estMaDemande = d.agent_id === utilisateurConnecte.id || d.agent_nom === nomComplet();
     const estMaPrise = d.pris_par_id === utilisateurConnecte.id;
@@ -966,6 +992,7 @@ async function chargerDemandes() {
     const cardClass = estPris ? "pris" : "dispo";
     const dotClass = estPris ? "red" : "green";
     const titre = estPris ? "Pris" : "Disponible";
+    const etiquetteType = estDisponibilite ? "Agent disponible" : "Recherche remplaçant";
 
     let bouton = "";
 
@@ -980,7 +1007,12 @@ async function chargerDemandes() {
         bouton = `<button onclick="supprimerDemande(${d.id})" class="btn btn-red">🗑️ Supprimer ma demande</button>`;
       } else {
         const actionEnCours = actionsEnCours.has(d.id);
-        bouton = `<button onclick="prendreDemande(${d.id}, '${d.agent_id || ""}')" class="btn btn-green" ${actionEnCours ? "disabled" : ""}>${actionEnCours ? "Traitement..." : "Je prends"}</button>`;
+        if (estDisponibilite) {
+          const emailAgent = d.agent_email || "";
+          bouton = `<button onclick="window.location.href='mailto:${emailAgent}?subject=Disponibilité remplacement ${d.date_service || ""}'" class="btn btn-blue">Contacter</button>`;
+        } else {
+          bouton = `<button onclick="prendreDemande(${d.id}, '${d.agent_id || ""}')" class="btn btn-green" ${actionEnCours ? "disabled" : ""}>${actionEnCours ? "Traitement..." : "Je prends"}</button>`;
+        }
       }
     }
 
@@ -991,9 +1023,11 @@ async function chargerDemandes() {
           <div class="datePill">${d.date_service}</div>
         </div>
 
+        <div class="typePill">${etiquetteType}</div>
+
         <div class="infoLine">
           ${htmlMiniAvatar(avatars[d.agent_id] || avatarsParNom[d.agent_nom], d.agent_nom)}
-          <strong>Demandé par :</strong> ${d.agent_nom}
+          <strong>${estDisponibilite ? "Agent :" : "Demandé par :"}</strong> ${d.agent_nom}
         </div>
         <div class="infoLine">🕒 <strong>Service :</strong> ${d.type_service}</div>
         <div class="infoLine">🏢 <strong>Mode :</strong> ${d.mode_remplacement}</div>
